@@ -1,78 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
-import { Board } from './components/Board'; // <-- Importando nosso componente
+import { useBoardStore } from './store/useBoardStore'; // Importamos a Store
+import { Board } from './components/Board';
 import './App.css';
 
 export default function App() {
   const [session, setSession] = useState(null);
-  const [tasks, setTasks] = useState([]);
   const [newTask, setNewTask] = useState('');
+  
+  // Pegamos o que precisamos da Store
+  const { fetchTasks, addTask } = useBoardStore();
 
-  // 1. Gerencia o Login
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
+    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
     return () => subscription.unsubscribe();
   }, []);
 
-  // 2. Busca as tarefas no banco
+  // Quando a sessão existir, carregamos as tarefas
   useEffect(() => {
     if (session) fetchTasks();
-  }, [session]);
+  }, [session, fetchTasks]);
 
-  async function fetchTasks() {
-    const { data, error } = await supabase
-      .from('tasks')
-      .select('*')
-      .order('created_at', { ascending: true });
-    if (!error) setTasks(data);
-  }
-
-  // 3. Adiciona nova tarefa
-  async function addTask() {
+  const handleAddTask = () => {
     if (!newTask) return;
-    const { error } = await supabase
-      .from('tasks')
-      .insert([{ title: newTask, user_id: session.user.id, status: 'todo' }]);
-    if (!error) {
-      setNewTask('');
-      fetchTasks();
-    }
-  }
-
-  // 4. Move a tarefa 
-  async function updateStatus(id, newStatus) {
-    const { error } = await supabase
-      .from('tasks')
-      .update({ status: newStatus })
-      .eq('id', id);
-    if (!error) fetchTasks();
-    else alert("Erro ao mover: " + error.message);
-  }
-
-  // 5. Deleta a tarefa
-  async function deleteTask(id) {
-    const { error } = await supabase.from('tasks').delete().eq('id', id);
-    if (!error) fetchTasks();
-    else alert("Erro ao deletar: Verifique se você rodou o SQL da lixeira no Supabase.");
-  }
-
-  const handleLogin = async () => {
-    const email = prompt("E-mail:");
-    const password = prompt("Senha:");
-    const { error } = await supabase.auth.signUp({ email, password });
-    if (error) alert(error.message);
+    addTask(newTask, session.user.id);
+    setNewTask('');
   };
 
   if (!session) {
     return (
       <div className="login-screen">
         <h1>🚀 Meu Kanban</h1>
-        <button onClick={handleLogin}>Entrar / Criar Conta</button>
+        <button onClick={async () => {
+          const email = prompt("E-mail:");
+          const password = prompt("Senha:");
+          await supabase.auth.signUp({ email, password });
+        }}>Entrar / Criar Conta</button>
       </div>
     );
   }
@@ -90,16 +54,11 @@ export default function App() {
           onChange={(e) => setNewTask(e.target.value)} 
           placeholder="O que precisa ser feito?" 
         />
-        <button className="btn-add" onClick={addTask}>Criar Tarefa</button>
+        <button className="btn-add" onClick={handleAddTask}>Criar Tarefa</button>
       </div>
 
-      {/* OLHA COMO FICOU LIMPO! Passamos os dados e as funções como "props" */}
-      <Board 
-        tasks={tasks} 
-        updateStatus={updateStatus} 
-        deleteTask={deleteTask} 
-      />
-      
+      {/* Não passamos NENHUMA prop! O Board se vira sozinho */}
+      <Board /> 
     </div>
   );
 }
