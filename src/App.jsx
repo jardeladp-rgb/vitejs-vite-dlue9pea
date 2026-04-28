@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
+import { Board } from './components/Board'; // <-- Importando nosso componente
 import './App.css';
 
 export default function App() {
@@ -43,7 +44,7 @@ export default function App() {
     }
   }
 
-  // 4. Move a tarefa para QUALQUER coluna (Movimentação Livre)
+  // 4. Move a tarefa 
   async function updateStatus(id, newStatus) {
     const { error } = await supabase
       .from('tasks')
@@ -67,7 +68,6 @@ export default function App() {
     if (error) alert(error.message);
   };
 
-  // TELA DE LOGIN
   if (!session) {
     return (
       <div className="login-screen">
@@ -77,7 +77,6 @@ export default function App() {
     );
   }
 
-  // TELA DO KANBAN (A que você vê após o login)
   return (
     <div className="container">
       <header>
@@ -94,32 +93,13 @@ export default function App() {
         <button className="btn-add" onClick={addTask}>Criar Tarefa</button>
       </div>
 
-      <div className="board">
-        {['todo', 'doing', 'done'].map(status => (
-          <div key={status} className="column">
-            <h3>{status === 'todo' ? '📋 A Fazer' : status === 'doing' ? '🚧 Fazendo' : '✅ Concluído'}</h3>
-            
-            {tasks.filter(t => t.status === status).map(task => (
-              <div key={task.id} className="card">
-                <p>{task.title}</p>
-                <div className="card-buttons">
-                  {/* Botões de movimentação baseados no status atual */}
-                  {task.status !== 'todo' && (
-                    <button onClick={() => updateStatus(task.id, 'todo')} title="Mover para A Fazer">⬅️</button>
-                  )}
-                  {task.status !== 'doing' && (
-                    <button onClick={() => updateStatus(task.id, 'doing')} title="Mover para Fazendo">🚧</button>
-                  )}
-                  {task.status !== 'done' && (
-                    <button onClick={() => updateStatus(task.id, 'done')} title="Mover para Concluído">✅</button>
-                  )}
-                  <button className="btn-del" onClick={() => deleteTask(task.id)} title="Excluir">🗑️</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
+      {/* OLHA COMO FICOU LIMPO! Passamos os dados e as funções como "props" */}
+      <Board 
+        tasks={tasks} 
+        updateStatus={updateStatus} 
+        deleteTask={deleteTask} 
+      />
+      
     </div>
   );
 }
